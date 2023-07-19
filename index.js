@@ -35,7 +35,7 @@ app.get('/admin', (req, res) => {
     });
 });
 
-app.listen(80, ()=>{
+app.listen(8080, ()=>{
     console.log('App start success!!!')
 });
 

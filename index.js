@@ -35,7 +35,7 @@ app.get('/admin', (req, res) => {
     });
 });
 
-app.listen(4000, ()=>{
+app.listen(80, ()=>{
     console.log('App start success!!!')
 });
 

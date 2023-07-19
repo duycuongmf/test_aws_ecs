@@ -3,6 +3,6 @@ WORKDIR /app
 COPY package.json .
 RUN npm install
 ADD . .
-EXPOSE 4000
+EXPOSE 80
 USER node
 CMD [ "node","index.js" ]

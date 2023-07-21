@@ -1,8 +1,10 @@
 FROM node:16.17-alpine
-WORKDIR /app
-COPY package.json ./
-RUN npm cache clean --force \
-  && npm install -g yarn \
-  && yarn
+#RUN apk add --no-cache make gcc g++ python
+WORKDIR /var/www
+VOLUME /var/www
+COPY package*.json ./
+RUN npm install -g npm@9.8.1 && npm cache clean --force \
+  && npm install -g node-gyp \
+  && npm install --unsafe-perm=true
 COPY . .
-CMD ["sh", "-c", "yarn migrate && yarn prebuild && yarn build && yarn start:prod"]
+CMD ["sh", "-c", "npm run prebuild && npm run build && npm run migrate && npm run start:prod"]

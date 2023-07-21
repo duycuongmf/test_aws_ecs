@@ -1,0 +1,9 @@
+-- AlterTable
+ALTER TABLE "Harvests" ADD COLUMN     "harvestDeliverEEZId" BIGINT,
+ALTER COLUMN "departureDate" SET DATA TYPE TEXT,
+ALTER COLUMN "tripStartDate" SET DATA TYPE TEXT,
+ALTER COLUMN "tripEndDate" SET DATA TYPE TEXT,
+ALTER COLUMN "landingDate" SET DATA TYPE TEXT;
+
+-- AddForeignKey
+ALTER TABLE "Harvests" ADD CONSTRAINT "Harvests_harvestDeliverEEZId_fkey" FOREIGN KEY ("harvestDeliverEEZId") REFERENCES "EEZs"("id") ON DELETE SET NULL ON UPDATE CASCADE;

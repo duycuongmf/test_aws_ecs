@@ -1,0 +1,938 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                      BigInt                    @id
+  email                   String                    @unique
+  firstName               String?
+  lastName                String?
+  password                String
+  tokens                  Token[]
+  grants                  Grant[]                   @relation("relation_permission")
+  grantCreator            Grant[]                   @relation("creator")
+  imports                 Import[]
+  documents               Document[]
+  harvests                Harvest[]
+  harvestVessel           HarvestVessel[]
+  organizations           Organization[]
+  organizationId          BigInt?
+  customerId              String?                   @db.VarChar(50)
+  subscriptionId          String?                   @db.VarChar(50)
+  subscriptionStatus      String?                   @db.VarChar(50)
+  subscriptionCreated     Int                       @default(0)
+  chargeId                String?                   @db.VarChar(50)
+  chargeStatus            String?                   @db.VarChar(50)
+  chargeUsed              Int                       @default(0)
+  chargeCreated           Int                       @default(0)
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  HarvestProgram          HarvestProgram[]
+  StripeHistory           StripeHistory[]
+  StripeUsageSubscription StripeUsageSubscription[]
+
+  @@map("Users")
+}
+
+model Token {
+  id        BigInt      @id
+  token     String      @unique
+  status    TokenStatus @default(ISSUED)
+  user      User        @relation(fields: [userId], references: [id])
+  userId    BigInt
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  expiredAt DateTime?
+
+  @@map("Tokens")
+}
+
+model Organization {
+  id             BigInt           @id
+  name           String?          @default("default")
+  email          String?          @db.VarChar(200)
+  phone          String?          @db.VarChar(50)
+  address        String?          @db.VarChar(500)
+  status         Status           @default(ACTIVE)
+  isVerified     Boolean          @default(false)
+  grants         Grant[]
+  permissions    Permission[]
+  imports        Import[]
+  documents      Document[]
+  harvests       Harvest[]
+  harvestVessel  HarvestVessel[]
+  harvestProgram HarvestProgram[]
+  creator        User             @relation(fields: [creatorId], references: [id])
+  creatorId      BigInt
+  expiredAt      DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  deletedAt      DateTime?
+
+  @@map("Organization")
+}
+
+model StripePlan {
+  id                BigInt    @id
+  name              String?   @default("default")
+  description       String?   @db.VarChar(200)
+  price             Float?
+  paymentServiceId  String?   @db.VarChar(100)
+  currency          String?   @db.VarChar(30)
+  recurringInterval String?   @db.VarChar(30)
+  type              String?   @db.VarChar(100)
+  status            Status    @default(ACTIVE)
+  creatorId         BigInt
+  expiredAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  @@map("StripePlans")
+}
+
+model StripeLog {
+  id            BigInt          @id
+  stripeId      String?         @db.VarChar(50)
+  customerId    String?         @db.VarChar(50)
+  event         String?         @db.VarChar(150)
+  json          String?         @db.Text
+  isActiveUser  Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  StripeHistory StripeHistory[]
+
+  @@map("StripeLogs")
+}
+
+model StripeHistory {
+  id          BigInt    @id
+  stripeId    String?   @db.VarChar(50)
+  stripeLog   StripeLog @relation(fields: [stripeLogId], references: [id])
+  stripeLogId BigInt
+  creator     User      @relation(fields: [creatorId], references: [id])
+  creatorId   BigInt
+  customerId  String?   @db.VarChar(50)
+  event       String?   @db.VarChar(150)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("StripeHistories")
+}
+
+model StripeUsageSubscription {
+  id            BigInt   @id
+  quantity      Int?     @default(0)
+  module        String?  @db.VarChar(50)
+  action        String?  @db.VarChar(50)
+  serviceUsedId String?  @db.VarChar(50)
+  creator       User     @relation(fields: [creatorId], references: [id])
+  creatorId     BigInt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("StripeUsageSubscriptions")
+}
+
+model Grant {
+  user           User         @relation("relation_permission", fields: [userId], references: [id])
+  userId         BigInt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId BigInt
+  role           Role         @relation(fields: [roleId], references: [id])
+  roleId         BigInt
+  isDefault      Boolean      @default(false)
+  creator        User         @relation("creator", fields: [creatorId], references: [id])
+  creatorId      BigInt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@id([organizationId, userId])
+  @@map("Grants")
+}
+
+model Role {
+  id          BigInt           @id
+  name        String           @unique
+  grants      Grant[]
+  permissions RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@map("Roles")
+}
+
+model Permission {
+  id             BigInt           @id
+  name           String           @unique
+  roles          RolePermission[]
+  organization   Organization     @relation(fields: [organizationId], references: [id])
+  organizationId BigInt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@map("Permissions")
+}
+
+model sCatair {
+  id          BigInt           @id
+  mId         String?
+  name        String           @db.VarChar(200)
+  code        String           @db.VarChar(200)
+  description String?          @db.VarChar(500)
+  eezs        sEEZCatair[]
+  rfmos       sRMFOCatair[]
+  faos        sFAOCatair[]
+  fisheries   sFisheryCatair[]
+  harvest     Harvest[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@map("Catairs")
+}
+
+model Contact {
+  id        BigInt         @id
+  name      String?        @db.VarChar(200)
+  address   Address?
+  method    ContactMethod?
+  type      ContactType?   @default(NORMAL)
+  harvest   Harvest?       @relation(fields: [harvestId], references: [id])
+  harvestId BigInt?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@map("Contacts")
+}
+
+model Address {
+  id        BigInt   @id
+  address   String?  @db.VarChar(300)
+  unit      String?  @db.VarChar(50)
+  city      String?  @db.VarChar(50)
+  state     String?  @db.VarChar(100)
+  country   String?  @db.VarChar(100)
+  zipcode   String?  @db.VarChar(50)
+  phone     String?  @db.VarChar(100)
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId BigInt   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Address")
+}
+
+model ContactMethod {
+  id        BigInt   @id
+  type      String   @db.VarChar(100)
+  value     String?  @db.VarChar(500)
+  contact   Contact  @relation(fields: [contactId], references: [id])
+  contactId BigInt   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("ContactMethod")
+}
+
+model sCountry {
+  id              BigInt           @id
+  mId             String?
+  name            String           @unique @db.VarChar(200)
+  mid             String[] // Note that Prisma not accept Null in Array Item. Please set [] if value is null
+  alpha2          String?          @db.VarChar(300)
+  alpha3          String?          @db.VarChar(300)
+  sort            Int?             @default(0)
+  eezs            sEEZCountry[]
+  imports         Import[]         @relation("ImportCountry")
+  exports         Import[]         @relation("ExportCountry")
+  rfmos           sRFMOCountry[]
+  IUUvessels      sVesselIUU[]
+  vessels         sVessel[]
+  harvestPrograms HarvestProgram[]
+  harvestVessels  HarvestVessel[]
+  fisheries       sFishery[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  Harvest         Harvest[]
+
+  @@map("Countries")
+}
+
+model sEEZ {
+  id                  BigInt        @id
+  mId                 String?
+  name                String        @db.VarChar(300)
+  code                String        @db.VarChar(100)
+  alpha3              String?       @db.VarChar(5)
+  authorizedCountries sEEZCountry[]
+  rfmos               sEEZRMFO[]
+  faos                sEEZFAO[]
+  catairs             sEEZCatair[]
+  fisheries           sFisheryEEZ[]
+  harvestDelivery     Harvest[]     @relation("harvestDeliveryEEZ")
+  harvestEEZ          Harvest[]     @relation("eez")
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@map("EEZs")
+}
+
+model sFAO {
+  id        BigInt        @id
+  mId       String?
+  name      String        @db.VarChar(200)
+  code      String        @db.VarChar(100)
+  type      String        @db.VarChar(100)
+  rfmos     sFAORFMO[]
+  eezs      sEEZFAO[]
+  catairs   sFAOCatair[]
+  fisheries sFisheryFAO[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  harvest   Harvest[]
+
+  @@map("FAOs")
+}
+
+model sFishery {
+  id        BigInt             @id
+  fisheryId String?            @db.VarChar(200)
+  loffId    String?            @db.VarChar(200)
+  species   sSpecies?          @relation(fields: [speciesId], references: [id])
+  speciesId BigInt?
+  country   sCountry?          @relation(fields: [countryId], references: [id])
+  countryId BigInt?
+  rfmos     sFisheryRMFO[]
+  eezs      sFisheryEEZ[]
+  gearTypes sFisheryGearType[]
+  catairs   sFisheryCatair[]
+  faos      sFisheryFAO[]
+  highSeas  String?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@map("Fisheries")
+}
+
+model sGearType {
+  id        BigInt             @id
+  mId       String?
+  code      String             @db.VarChar(5)
+  name      String             @db.VarChar(300)
+  type      String             @db.VarChar(500)
+  harvests  Harvest[]
+  fisheries sFisheryGearType[]
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@map("GearType")
+}
+
+model Import {
+  id             BigInt       @id
+  mId            String?      @unique
+  exportFrom     sCountry?    @relation("ExportCountry", fields: [exportFromId], references: [id])
+  exportFromId   BigInt
+  importTo       sCountry?    @relation("ImportCountry", fields: [importToId], references: [id])
+  importToId     BigInt
+  identifier     String?      @db.VarChar(150)
+  harvests       Harvest[]
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId BigInt
+  creator        User         @relation(fields: [creatorId], references: [id])
+  creatorId      BigInt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("Imports")
+}
+
+model Document {
+  id             BigInt       @id
+  mId            String?      @unique
+  // rule      String   @db.VarChar(200) - Hold on
+  name           String       @db.VarChar(200)
+  required       Boolean      @default(false)
+  fulfilled      Boolean      @default(false)
+  type           String?      @db.VarChar(50)
+  url            String?      @db.VarChar(1000)
+  key            String?      @db.VarChar(200)
+  provider       String?      @db.VarChar(200)
+  harvest        Harvest?     @relation(fields: [harvestId], references: [id])
+  harvestId      BigInt?
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId BigInt
+  creator        User         @relation(fields: [creatorId], references: [id])
+  creatorId      BigInt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("Documents")
+}
+
+model Harvest {
+  id                             BigInt                    @id
+  productFormat                  ProductFormat             @default(FROZEN)
+  productState                   String?                   @db.VarChar(300)
+  harvestType                    String?
+  harvestScale                   String?
+  harvestDeliveryMethod          HarvestDeliveryMethod?    @default(LAND)
+  harvestDeliveryMethodRef       HarvestDeliveryMethodRef?
+  harvestDeliveryVesselName      String?                   @db.VarChar(500)
+  harvestDeliveryVesselCountry   sCountry?                 @relation(fields: [harvestDeliveryVesselCountryId], references: [id])
+  harvestDeliveryVesselCountryId BigInt?
+  harvestWeightUnit              HarvestWeightUnit?        @default(LBS)
+  harvestWeightValue             String?                   @db.VarChar(300)
+  productDescription             String?                   @db.VarChar(300)
+  IFTP                           String?                   @db.VarChar(100)
+  landingType                    String?                   @db.VarChar(300)
+  departureDate                  String?
+  tripStartDate                  String?
+  tripEndDate                    String?
+  landingDate                    String?
+  totalFarms                     Int? // harvest_type == farm && harvest_scale == small
+  totalVessels                   Int?
+  totalSmallVessels              Int? // harvestType == "wild" && isSmallVessel
+  // isSmallVessel            Boolean? // harvestType == "wild"
+  isDolphinSafe                  Boolean? // harvestType == "wild
+  typeFarmHarvest                TypeFarmHarvest?          @default(SMALL) // harvest_type == farm && harvest_scale == small
+  typeWildHarvest                TypeWildHarvest?          @default(SMALL) // harvest_type == wild && harvest_scale == small
+  landingTypeDetails             Json?
+  programs                       Json?
+  facility                       Json?
+  conditionalData                Json?
+  documents                      Document[]
+  permits                        Permit[]
+  species                        sSpecies?                 @relation(fields: [speciesId], references: [id])
+  speciesId                      BigInt?
+  productForm                    sProductForm?             @relation(fields: [productFormId], references: [id])
+  productFormId                  BigInt?
+  vessel                         sVessel?                  @relation(fields: [vesselId], references: [id]) // harvestType == "wild" && !isSmallVessel
+  vesselId                       BigInt? // harvestType == "wild" && !isSmallVessel
+  harvestVessel                  HarvestVessel?
+  gearType                       sGearType?                @relation(fields: [gearTypeId], references: [id])
+  gearTypeId                     BigInt?
+  import                         Import                    @relation(fields: [importId], references: [id])
+  importId                       BigInt
+  harvestProgram                 HarvestProgram?
+  tariff                         sTariff?                  @relation(fields: [tariffId], references: [id])
+  tariffId                       BigInt?
+  harvestDeliveryEEZ             sEEZ?                     @relation("harvestDeliveryEEZ", fields: [harvestDeliveryEEZId], references: [id])
+  harvestDeliveryEEZId           BigInt?
+  eez                            sEEZ?                     @relation("eez", fields: [eezId], references: [id])
+  eezId                          BigInt?
+  fao                            sFAO?                     @relation(fields: [faoId], references: [id])
+  faoId                          BigInt?
+  rfmo                           sRFMO?                    @relation(fields: [rfmoId], references: [id])
+  rfmoId                         BigInt?
+  catair                         sCatair?                  @relation(fields: [catairId], references: [id])
+  catairId                       BigInt?
+  contacts                       Contact[]
+  organization                   Organization              @relation(fields: [organizationId], references: [id])
+  organizationId                 BigInt
+  creator                        User                      @relation(fields: [creatorId], references: [id])
+  creatorId                      BigInt
+  startDate                      DateTime? // maybe remove
+  endDate                        DateTime? // maybe remove
+  createdAt                      DateTime                  @default(now())
+  updatedAt                      DateTime                  @updatedAt
+
+  @@map("Harvests")
+}
+
+model HarvestVessel {
+  id               BigInt       @id
+  name             String?      @db.VarChar(300)
+  imo              String?      @db.VarChar(300)
+  mmsi             String?      @db.VarChar(300)
+  ircs             String?      @db.VarChar(300)
+  rfmo             String?      @db.VarChar(300)
+  status           String?      @db.VarChar(100)
+  nationalRegistry String?      @db.VarChar(100)
+  flag             sCountry?    @relation(fields: [flagId], references: [id])
+  flagId           BigInt?
+  harvest          Harvest?     @relation(fields: [harvestId], references: [id])
+  harvestId        BigInt?      @unique
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  organizationId   BigInt
+  creator          User         @relation(fields: [creatorId], references: [id])
+  creatorId        BigInt
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@map("HarvestVessel")
+}
+
+// Hoàng -- This needs to be reworked a little bit, these items aren't necessarily specific to the SIMP program as previously thought
+model HarvestProgram {
+  id                                BigInt       @id
+  simpHarvestAuthorizationBody      String?      @db.VarChar(3000)
+  simpHarvestAuthorizatiorRFMO      sRFMO?       @relation(fields: [simpHarvestAuthorizationRFMOId], references: [id])
+  simpHarvestAuthorizationRFMOId    BigInt?
+  simpHarvestAuthorizationCountry   sCountry?    @relation(fields: [simpHarvestAuthorizationCountryId], references: [id])
+  simpHarvestAuthorizationCountryId BigInt?
+  harvest                           Harvest?     @relation(fields: [harvestId], references: [id])
+  harvestId                         BigInt       @unique
+  ttvp                              Json?
+  coa                               Json?
+  organization                      Organization @relation(fields: [organizationId], references: [id])
+  organizationId                    BigInt
+  creator                           User         @relation(fields: [creatorId], references: [id])
+  creatorId                         BigInt
+  createdAt                         DateTime     @default(now())
+  updatedAt                         DateTime     @updatedAt
+
+  @@map("HarvestProgram")
+}
+
+model Program {
+  id        BigInt   @id
+  mId       String?
+  name      String   @db.VarChar(300)
+  status    Status   @default(ACTIVE)
+  rules     Rule[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Programs")
+}
+
+model sProductForm {
+  id        BigInt    @id
+  mId       String?
+  name      String    @db.VarChar(300)
+  code      String    @db.VarChar(100)
+  harvests  Harvest[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("ProductForm")
+}
+
+model sRFMO {
+  id              BigInt           @id
+  mId             String?
+  code            String           @db.VarChar(100)
+  name            String           @db.VarChar(300)
+  faos            sFAORFMO[]
+  catairs         sRMFOCatair[]
+  eezs            sEEZRMFO[]
+  harvestProgram  HarvestProgram[]
+  fisheries       sFisheryRMFO[]
+  memberCountries sRFMOCountry[]
+  harvests        Harvest[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@map("RFMO")
+}
+
+model Rule {
+  id           BigInt     @id
+  mId          String?
+  name         String     @db.VarChar(300)
+  status       Status     @default(ACTIVE)
+  condition    String     @db.VarChar(100)
+  event        Json
+  requirements Json[]
+  notices      Json[]
+  visibles     sVisible[]
+  program      Program?   @relation(fields: [programId], references: [id])
+  programId    BigInt?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@map("Rules")
+}
+
+model sSpecies {
+  id             BigInt           @id
+  mId            String?
+  name           String?          @db.VarChar(300)
+  scientificName String           @db.VarChar(300)
+  taxonomyCode   String           @db.VarChar(200)
+  alpha3         String           @db.VarChar(5)
+  harvests       Harvest[]
+  fisheries      sFishery[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  sSpeciesTariff sSpeciesTariff[]
+
+  @@map("Species")
+}
+
+model sTariff {
+  id                BigInt           @id
+  mId               String?
+  footnotes         String?          @db.VarChar(200)
+  quotaQuantity     String?          @db.VarChar(200)
+  other             String?          @db.VarChar(200)
+  indent            String?          @db.VarChar(200)
+  superior          String?          @db.VarChar(200)
+  chapter           String?          @db.VarChar(5)
+  heading           String?          @db.VarChar(5)
+  chapterHeading    String?          @db.VarChar(10)
+  subheading        String?          @db.VarChar(5)
+  tariffRate        String?          @db.VarChar(5)
+  statisticalSuffix String?          @db.VarChar(5)
+  fullNonDelimited  String?          @db.VarChar(200)
+  fullDelimited     String?          @db.VarChar(200)
+  description       String?          @db.Text
+  fullDescription   String[]
+  special           String?          @db.VarChar(500)
+  htsno             String?          @db.VarChar(200)
+  units             String?          @db.VarChar(200)
+  general           String?          @db.VarChar(200)
+  harvests          Harvest[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  sSpeciesTariff    sSpeciesTariff[]
+
+  @@map("Tariffs")
+}
+
+model sVessel {
+  id               BigInt                @id
+  mId              String?
+  name             String                @db.VarChar(300)
+  IMO              String?
+  IRCS             String?
+  MMSI             String?
+  nationalRegistry String?
+  country          sCountry?             @relation(fields: [countryId], references: [id])
+  countryId        BigInt?
+  harvests         Harvest[]
+  registrations    sVesselRegistration[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@map("Vessels")
+}
+
+model sVesselIUU {
+  id               BigInt           @id
+  mId              String?
+  name             String           @db.VarChar(300)
+  alias            String[]
+  IMO              String?
+  IRCS             String?
+  MMSI             String?
+  nationalRegistry String?
+  country          sCountry?        @relation(fields: [countryId], references: [id])
+  countryId        BigInt?
+  status           VesselsIUUStatus @default(CURRENT)
+  details          sDetail[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@map("VesselIUU")
+}
+
+model sVesselRegistration {
+  id        BigInt   @id
+  type      String
+  value     String
+  vessel    sVessel? @relation(fields: [vesselId], references: [id])
+  vesselId  BigInt?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("VesselRegistration")
+}
+
+model sDetail {
+  id          BigInt      @id
+  mId         String?
+  url         String?     @db.VarChar(100)
+  name        String?     @db.VarChar(300)
+  vesselIUU   sVesselIUU? @relation(fields: [vesselIUUId], references: [id])
+  vesselIUUId BigInt?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("Details")
+}
+
+model sVisible {
+  id        BigInt     @id
+  mId       String?
+  condition Condition?
+  rules     Rule       @relation(fields: [ruleId], references: [id])
+  ruleId    BigInt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("Visible")
+}
+
+model Permit {
+  id        BigInt   @id
+  mId       String?
+  issuer    String   @db.VarChar(300)
+  value     String   @db.VarChar(500)
+  harvest   Harvest? @relation(fields: [harvestId], references: [id])
+  harvestId BigInt?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("Permits")
+}
+
+model sEEZCatair {
+  catair    sCatair  @relation(fields: [catairId], references: [id])
+  catairId  BigInt
+  eez       sEEZ     @relation(fields: [eezId], references: [id])
+  eezId     BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([catairId, eezId])
+  @@map("EEZCatair")
+}
+
+model sEEZRMFO {
+  rfmo      sRFMO    @relation(fields: [rfmoId], references: [id])
+  rfmoId    BigInt
+  eez       sEEZ     @relation(fields: [eezId], references: [id])
+  eezId     BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([rfmoId, eezId])
+  @@map("EEZRMFO")
+}
+
+model sEEZCountry {
+  country   sCountry @relation(fields: [countryId], references: [id])
+  countryId BigInt
+  eez       sEEZ     @relation(fields: [eezId], references: [id])
+  eezId     BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([eezId, countryId])
+  @@map("EEZCountry")
+}
+
+model sFisheryRMFO {
+  rfmo      sRFMO    @relation(fields: [rfmoId], references: [id])
+  rfmoId    BigInt
+  fishery   sFishery @relation(fields: [fisheryId], references: [id])
+  fisheryId BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([rfmoId, fisheryId])
+  @@map("FisheryRMFO")
+}
+
+model sFisheryEEZ {
+  eez       sEEZ     @relation(fields: [eezId], references: [id])
+  eezId     BigInt
+  fishery   sFishery @relation(fields: [fisheryId], references: [id])
+  fisheryId BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([eezId, fisheryId])
+  @@map("FisheryEEZ")
+}
+
+model sFisheryGearType {
+  gearType   sGearType @relation(fields: [gearTypeId], references: [id])
+  gearTypeId BigInt
+  fishery    sFishery  @relation(fields: [fisheryId], references: [id])
+  fisheryId  BigInt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@id([gearTypeId, fisheryId])
+  @@map("FisheryGearType")
+}
+
+model sFisheryCatair {
+  catair    sCatair  @relation(fields: [catairId], references: [id])
+  catairId  BigInt
+  fishery   sFishery @relation(fields: [fisheryId], references: [id])
+  fisheryId BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([fisheryId, catairId])
+  @@map("FisheryCatair")
+}
+
+model sFisheryFAO {
+  fishery   sFishery @relation(fields: [fisheryId], references: [id])
+  fisheryId BigInt
+  fao       sFAO     @relation(fields: [faoId], references: [id])
+  faoId     BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([fisheryId, faoId])
+  @@map("FisheryFAO")
+}
+
+model sRMFOCatair {
+  catair    sCatair  @relation(fields: [catairId], references: [id])
+  catairId  BigInt
+  rmfo      sRFMO    @relation(fields: [rmfoId], references: [id])
+  rmfoId    BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([rmfoId, catairId])
+  @@map("RMFOCatair")
+}
+
+model sRFMOCountry {
+  country   sCountry @relation(fields: [countryId], references: [id])
+  countryId BigInt
+  rfmo      sRFMO    @relation(fields: [rfmoId], references: [id])
+  rfmoId    BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([rfmoId, countryId])
+  @@map("RFMOCountry")
+}
+
+model sEEZFAO {
+  eez       sEEZ     @relation(fields: [eezId], references: [id])
+  eezId     BigInt
+  fao       sFAO     @relation(fields: [faoId], references: [id])
+  faoId     BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([eezId, faoId])
+  @@map("EEZFAO")
+}
+
+model sFAOCatair {
+  catair    sCatair  @relation(fields: [catairId], references: [id])
+  catairId  BigInt
+  fao       sFAO     @relation(fields: [faoId], references: [id])
+  faoId     BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([catairId, faoId])
+  @@map("FAOCatair")
+}
+
+model sFAORFMO {
+  rfmo      sRFMO    @relation(fields: [rfmoId], references: [id])
+  rfmoId    BigInt
+  fao       sFAO     @relation(fields: [faoId], references: [id])
+  faoId     BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([rfmoId, faoId])
+  @@map("FAORFMO")
+}
+
+model sSpeciesTariff {
+  species   sSpecies @relation(fields: [speciesId], references: [id])
+  speciesId BigInt
+  tariff    sTariff  @relation(fields: [tariffId], references: [id])
+  tariffId  BigInt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([speciesId, tariffId])
+  @@map("SpeciesTariff")
+}
+
+model RolePermission {
+  role         Role       @relation(fields: [roleId], references: [id])
+  roleId       BigInt
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  permissionId BigInt
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@id([roleId, permissionId])
+  @@map("RolePermission")
+}
+
+enum TokenStatus {
+  ISSUED
+  EXPIRED
+}
+
+enum RoleType {
+  USER
+  ADMIN
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+}
+
+enum Condition {
+  CONDITIONALLY
+  TRUE
+}
+
+enum VesselsIUUStatus {
+  CURRENT
+  PAST
+}
+
+enum ProductFormat {
+  FRESH
+  FROZEN
+}
+
+enum HarvestType {
+  WILD
+  FARM
+}
+
+enum HarvestWeightUnit {
+  KG
+  LBS
+}
+
+enum HarvestScale {
+  SMALL
+  LARGE
+}
+
+enum TypeFarmHarvest {
+  SMALL
+  LARGE
+}
+
+enum TypeWildHarvest {
+  SMALL
+  LARGE
+}
+
+enum HarvestDeliveryMethod {
+  LAND
+  VESSEL
+}
+
+enum HarvestDeliveryMethodRef {
+  sEEZ
+  Contact
+}
+
+enum ContactType {
+  NORMAL
+  DELIVERY
+}

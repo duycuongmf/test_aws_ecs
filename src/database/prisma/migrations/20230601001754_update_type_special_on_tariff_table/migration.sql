@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Tariffs" ALTER COLUMN "special" SET DATA TYPE VARCHAR(500);

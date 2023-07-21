@@ -1,8 +1,9 @@
-FROM node:18.15.0
+FROM node:16.17-alpine
 WORKDIR /app
-COPY package.json .
-RUN npm install
-ADD . .
-EXPOSE 4000
-USER node
-CMD [ "node","index.js" ]
+COPY package.json ./
+COPY yarn.lock ./
+RUN npm cache clean --force \
+  && npm install -g yarn \
+  && npm install
+COPY . .
+CMD ["sh", "-c", "yarn migrate && yarn prebuild && yarn build && yarn start:prod"]

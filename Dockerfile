@@ -1,7 +1,6 @@
 FROM node:16.17-alpine
 WORKDIR /app
 COPY package.json ./
-COPY yarn.lock ./
 RUN npm cache clean --force \
   && npm install -g yarn \
   && npm install

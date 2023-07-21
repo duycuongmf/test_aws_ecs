@@ -1,7 +1,7 @@
 FROM node:16.17-alpine
 WORKDIR /app
 COPY package.json ./
-RUN npm cache clean --force \
+RUN npm cache clean \
   && npm install -g yarn \
   && npm install
 COPY . .
